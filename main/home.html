@@ -11,17 +11,19 @@ body{background:#141414;color:#fff;font-family:Arial,Helvetica,sans-serif}
 nav{width:100%;background:#1e1e1e;border-bottom:1px solid #333;display:flex;justify-content:space-evenly;align-items:center;padding:14px 0}
 nav img{width:26px;height:26px;cursor:pointer;transition:.2s}
 nav img:hover{opacity:.7}
-.main{width:98%;margin:20px auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.main{width:98%;margin:20px auto;display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
 .tile{border:1px solid #333;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
-.tile img{width:54px;height:54px;filter:brightness(0) invert(1)}
+.tile canvas{border-radius:10px}
 .space{height:18px}
 .btns{display:flex;flex-direction:column;gap:10px;width:100%}
 button{background:#1e1e1e;border:none;color:#fff;border-radius:10px;padding:10px;cursor:pointer;transition:.2s}
 button:hover{background:#2a2a2a}
 .picker{position:fixed;inset:0;background:#00000080;display:none;align-items:center;justify-content:center}
-.box{background:#1e1e1e;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.box{background:#1e1e1e;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;align-items:center}
 input[type=color]{appearance:none;border:none;width:220px;height:120px;border-radius:14px;background:none;cursor:pointer}
-@media(max-width:600px){.main{grid-template-columns:1fr}}
+@media(max-width:1200px){.main{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:900px){.main{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.main{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -33,29 +35,90 @@ input[type=color]{appearance:none;border:none;width:220px;height:120px;border-ra
 <div class="main" id="grid"></div>
 <div class="picker" id="picker">
 <div class="box">
-<input type="color" id="color">
+<input type="color" id="color" value="#ffffff">
 <button onclick="apply()">Apply</button>
 <button onclick="closePicker()">Close</button>
 </div>
 </div>
 <script>
-let current=null
-fetch('https://devnbi.github.io/NexusByte-Icons/assets/data/indexing.json').then(r=>r.json()).then(data=>{
-const grid=document.getElementById('grid')
-data.forEach(url=>{
-const t=document.createElement('div')
-t.className='tile'
-t.innerHTML=`<img src="${url}"><div class="space"></div><div class="btns"><button>Change Colour</button><button>Download</button></div>`
-grid.appendChild(t)
-const img=t.querySelector('img')
-t.querySelector('button:nth-child(1)').onclick=()=>openPicker(img)
-t.querySelector('button:nth-child(2)').onclick=()=>download(img)
-})
-})
-function openPicker(img){current=img;document.getElementById('picker').style.display='flex'}
-function closePicker(){document.getElementById('picker').style.display='none'}
-function apply(){const c=document.getElementById('color').value;current.style.filter=`brightness(0) saturate(100%) invert(1) drop-shadow(0 0 0 ${c})`;closePicker()}
-function download(img){const canvas=document.createElement('canvas');const ctx=canvas.getContext('2d');const temp=new Image();temp.crossOrigin='anonymous';temp.onload=()=>{canvas.width=temp.width;canvas.height=temp.height;ctx.drawImage(temp,0,0);const data=canvas.toDataURL('image/png');const a=document.createElement('a');a.href=data;a.download='icon.png';a.click()};temp.src=img.src}
+let currentCanvas=null;
+let currentColor='#ffffff';
+let currentImg=null;
+const displayCanvasSize=96;
+const fullSize=512;
+
+fetch('https://devnbi.github.io/NexusByte-Icons/assets/data/indexing.json')
+.then(r=>r.json())
+.then(data=>{
+  const grid=document.getElementById('grid');
+  data.forEach(url=>{
+    const t=document.createElement('div');
+    t.className='tile';
+    t.innerHTML=`<canvas width="${displayCanvasSize}" height="${displayCanvasSize}"></canvas><div class="space"></div><div class="btns"><button>Change Colour</button><button>Download</button></div>`;
+    grid.appendChild(t);
+
+    const canvas=t.querySelector('canvas');
+    const ctx=canvas.getContext('2d');
+
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=()=>{
+      const scale=Math.min(displayCanvasSize/img.width, displayCanvasSize/img.height);
+      const w=img.width*scale;
+      const h=img.height*scale;
+      const x=(displayCanvasSize-w)/2;
+      const y=(displayCanvasSize-h)/2;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img,x,y,w,h);
+    };
+    img.src=url;
+
+    t.querySelector('button:nth-child(1)').onclick=()=>openPicker(canvas,img);
+    t.querySelector('button:nth-child(2)').onclick=()=>download(img,currentColor);
+  });
+});
+
+function openPicker(canvas,img){
+  currentCanvas=canvas;
+  currentImg=img;
+  currentColor='#ffffff';
+  document.getElementById('color').value=currentColor;
+  document.getElementById('picker').style.display='flex';
+  document.getElementById('color').oninput=()=>{
+    currentColor=document.getElementById('color').value;
+    const ctx=currentCanvas.getContext('2d');
+    ctx.clearRect(0,0,currentCanvas.width,currentCanvas.height);
+    const scale=Math.min(currentCanvas.width/currentImg.width,currentCanvas.height/currentImg.height);
+    const w=currentImg.width*scale;
+    const h=currentImg.height*scale;
+    const x=(currentCanvas.width-w)/2;
+    const y=(currentCanvas.height-h)/2;
+    ctx.drawImage(currentImg,x,y,w,h);
+    ctx.globalCompositeOperation='source-atop';
+    ctx.fillStyle=currentColor;
+    ctx.fillRect(0,0,currentCanvas.width,currentCanvas.height);
+    ctx.globalCompositeOperation='source-over';
+  };
+}
+
+function closePicker(){document.getElementById('picker').style.display='none';}
+function apply(){closePicker();}
+
+function download(img,color){
+  const canvas=document.createElement('canvas');
+  canvas.width=fullSize;
+  canvas.height=fullSize;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(img,0,0,fullSize,fullSize);
+  ctx.globalCompositeOperation='source-atop';
+  ctx.fillStyle=color;
+  ctx.fillRect(0,0,fullSize,fullSize);
+  ctx.globalCompositeOperation='source-over';
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download='icon.png';
+  a.click();
+}
 </script>
 </body>
 </html>
