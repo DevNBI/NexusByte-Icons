@@ -18,3 +18,5 @@ As mentioned above, we ***do not*** own or claim to own rights to the icons foun
 - Add more icon styles (filled, sharp, etc)
 - Redesign the website
 - Improve indexing
+- Add more format support
+- Add size support
