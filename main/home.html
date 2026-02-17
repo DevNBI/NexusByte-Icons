@@ -21,6 +21,19 @@ button:hover{background:#2a2a2a}
 .picker{position:fixed;inset:0;background:#00000080;display:none;align-items:center;justify-content:center}
 .box{background:#1e1e1e;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;align-items:center}
 input[type=color]{appearance:none;border:none;width:220px;height:120px;border-radius:14px;background:none;cursor:pointer}
+.popupWrap{position:fixed;inset:0;display:none;backdrop-filter:blur(10px);align-items:center;justify-content:center}
+.popup{background:#1e1e1e;border-radius:10px;padding:20px;width:500px;max-width:95%;display:flex;flex-direction:column;gap:16px}
+.popHead{display:flex;justify-content:space-between;align-items:center}
+.popHead b{font-size:18px}
+.popHead img{width:20px;height:20px;cursor:pointer}
+.popBody{display:flex;gap:20px}
+.preview{border:1px solid #333;border-radius:10px;width:160px;height:160px;display:flex;align-items:center;justify-content:center}
+.preview canvas{width:96px;height:96px}
+.opts{display:flex;flex-direction:column;gap:10px;width:100%}
+.drop{position:relative}
+.menu{position:absolute;top:110%;left:0;background:#1e1e1e;border:1px solid #333;border-radius:10px;display:none;flex-direction:column;width:100%}
+.menu div{padding:8px;cursor:pointer}
+.menu div:hover{background:#2a2a2a}
 @media(max-width:1200px){.main{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:900px){.main{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:600px){.main{grid-template-columns:repeat(2,1fr)}}
@@ -33,6 +46,42 @@ input[type=color]{appearance:none;border:none;width:220px;height:120px;border-ra
 <img src="https://devnbi.github.io/NexusByte-Icons/assets/media/icons/information.png" onclick="location.href='https://devnbi.github.io/NexusByte-Icons/main/information.html'">
 </nav>
 <div class="main" id="grid"></div>
+
+<div class="popupWrap" id="popupWrap">
+<div class="popup">
+<div class="popHead">
+<b>Customise</b>
+<img src="https://devnbi.github.io/NexusByte-Icons/assets/media/icons/circular-cross.png">
+</div>
+<div class="popBody">
+<div class="preview"><canvas id="preview"></canvas></div>
+<div class="opts">
+<button id="colBtn">Change colour</button>
+<div class="drop">
+<button id="sizeBtn">Change size</button>
+<div class="menu" id="sizeMenu">
+<div>16PX</div>
+<div>32PX</div>
+<div>64PX</div>
+<div>128PX</div>
+<div>256PX</div>
+<div>512PX</div>
+</div>
+</div>
+<div class="drop">
+<button id="formatBtn">Change format</button>
+<div class="menu" id="formatMenu">
+<div>PNG</div>
+<div>JPG</div>
+<div>ICO</div>
+</div>
+</div>
+<button id="downloadBtn">Download</button>
+</div>
+</div>
+</div>
+</div>
+
 <div class="picker" id="picker">
 <div class="box">
 <input type="color" id="color" value="#ffffff">
@@ -40,85 +89,113 @@ input[type=color]{appearance:none;border:none;width:220px;height:120px;border-ra
 <button onclick="closePicker()">Close</button>
 </div>
 </div>
+
 <script>
 let currentCanvas=null;
-let currentColor='#ffffff';
 let currentImg=null;
+let currentName='';
+let currentColor='#ffffff';
+let currentSize=512;
+let currentFormat='png';
 const displayCanvasSize=96;
-const fullSize=512;
 
 fetch('https://devnbi.github.io/NexusByte-Icons/assets/data/indexing.json')
 .then(r=>r.json())
 .then(data=>{
   const grid=document.getElementById('grid');
   data.forEach(url=>{
+    const name=url.split('/icons/')[1].replace('.png','');
     const t=document.createElement('div');
     t.className='tile';
-    t.innerHTML=`<canvas width="${displayCanvasSize}" height="${displayCanvasSize}"></canvas><div class="space"></div><div class="btns"><button>Change Colour</button><button>Download</button></div>`;
+    t.innerHTML=`<canvas width="${displayCanvasSize}" height="${displayCanvasSize}"></canvas><div class="space"></div><div>${name}</div><div class="space"></div><div class="btns"><button>Customise</button></div>`;
     grid.appendChild(t);
 
     const canvas=t.querySelector('canvas');
-    const ctx=canvas.getContext('2d');
-
     const img=new Image();
     img.crossOrigin='anonymous';
-    img.onload=()=>{
-      const scale=Math.min(displayCanvasSize/img.width, displayCanvasSize/img.height);
-      const w=img.width*scale;
-      const h=img.height*scale;
-      const x=(displayCanvasSize-w)/2;
-      const y=(displayCanvasSize-h)/2;
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(img,x,y,w,h);
-    };
+    img.onload=()=>drawIcon(canvas,img,'#ffffff');
     img.src=url;
 
-    t.querySelector('button:nth-child(1)').onclick=()=>openPicker(canvas,img);
-    t.querySelector('button:nth-child(2)').onclick=()=>download(img,currentColor);
+    t.querySelector('button').onclick=()=>openPopup(img,name);
   });
 });
 
-function openPicker(canvas,img){
-  currentCanvas=canvas;
+function drawIcon(canvas,img,color){
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const scale=Math.min(canvas.width/img.width,canvas.height/img.height);
+  const w=img.width*scale;
+  const h=img.height*scale;
+  const x=(canvas.width-w)/2;
+  const y=(canvas.height-h)/2;
+  ctx.drawImage(img,x,y,w,h);
+  ctx.globalCompositeOperation='source-atop';
+  ctx.fillStyle=color;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.globalCompositeOperation='source-over';
+}
+
+function openPopup(img,name){
   currentImg=img;
+  currentName=name;
   currentColor='#ffffff';
-  document.getElementById('color').value=currentColor;
+  document.getElementById('popupWrap').style.display='flex';
+  const canvas=document.getElementById('preview');
+  canvas.width=displayCanvasSize;
+  canvas.height=displayCanvasSize;
+  drawIcon(canvas,img,currentColor);
+}
+
+document.querySelector('.popHead img').onclick=()=>document.getElementById('popupWrap').style.display='none';
+
+document.getElementById('colBtn').onclick=()=>{
   document.getElementById('picker').style.display='flex';
   document.getElementById('color').oninput=()=>{
     currentColor=document.getElementById('color').value;
-    const ctx=currentCanvas.getContext('2d');
-    ctx.clearRect(0,0,currentCanvas.width,currentCanvas.height);
-    const scale=Math.min(currentCanvas.width/currentImg.width,currentCanvas.height/currentImg.height);
-    const w=currentImg.width*scale;
-    const h=currentImg.height*scale;
-    const x=(currentCanvas.width-w)/2;
-    const y=(currentCanvas.height-h)/2;
-    ctx.drawImage(currentImg,x,y,w,h);
-    ctx.globalCompositeOperation='source-atop';
-    ctx.fillStyle=currentColor;
-    ctx.fillRect(0,0,currentCanvas.width,currentCanvas.height);
-    ctx.globalCompositeOperation='source-over';
+    drawIcon(document.getElementById('preview'),currentImg,currentColor);
   };
-}
+};
 
 function closePicker(){document.getElementById('picker').style.display='none';}
 function apply(){closePicker();}
 
-function download(img,color){
+document.getElementById('sizeBtn').onclick=()=>toggle('sizeMenu');
+document.getElementById('formatBtn').onclick=()=>toggle('formatMenu');
+
+function toggle(id){
+  const m=document.getElementById(id);
+  m.style.display=m.style.display==='flex'?'none':'flex';
+}
+
+document.querySelectorAll('#sizeMenu div').forEach(d=>{
+  d.onclick=()=>{
+    currentSize=parseInt(d.textContent);
+    document.getElementById('sizeMenu').style.display='none';
+  };
+});
+
+document.querySelectorAll('#formatMenu div').forEach(d=>{
+  d.onclick=()=>{
+    currentFormat=d.textContent.toLowerCase();
+    document.getElementById('formatMenu').style.display='none';
+  };
+});
+
+document.getElementById('downloadBtn').onclick=()=>{
   const canvas=document.createElement('canvas');
-  canvas.width=fullSize;
-  canvas.height=fullSize;
+  canvas.width=currentSize;
+  canvas.height=currentSize;
   const ctx=canvas.getContext('2d');
-  ctx.drawImage(img,0,0,fullSize,fullSize);
+  ctx.drawImage(currentImg,0,0,currentSize,currentSize);
   ctx.globalCompositeOperation='source-atop';
-  ctx.fillStyle=color;
-  ctx.fillRect(0,0,fullSize,fullSize);
+  ctx.fillStyle=currentColor;
+  ctx.fillRect(0,0,currentSize,currentSize);
   ctx.globalCompositeOperation='source-over';
   const a=document.createElement('a');
-  a.href=canvas.toDataURL('image/png');
-  a.download='icon.png';
+  a.href=canvas.toDataURL('image/'+currentFormat);
+  a.download=currentName+'.'+currentFormat;
   a.click();
-}
+};
 </script>
 </body>
 </html>
