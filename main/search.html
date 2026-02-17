@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Search</title>
+<link rel="icon" href="https://devnbi.github.io/NexusByte-Icons/assets/media/branding/logo.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#141414;color:#fff;font-family:Arial,Helvetica,sans-serif}
+nav{position:fixed;top:0;left:0;width:100%;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);border-bottom:1px solid #333;display:flex;justify-content:space-evenly;align-items:center;padding:14px 0;z-index:1000}
+nav img{width:26px;height:26px;cursor:pointer;transition:.2s}
+nav img:hover{opacity:.7}
+
+.searchWrap{width:98%;margin:90px auto 10px auto}
+.searchBar{width:100%;background:#1e1e1e;border:1px solid #333;border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px}
+.searchBar img{width:18px;height:18px}
+.searchBar input{background:none;border:none;outline:none;color:#fff;width:100%;font-size:14px}
+
+.results{width:98%;margin:0 auto 20px auto;background:#1e1e1e;border:1px solid #333;border-radius:10px;min-height:70vh;overflow:auto}
+.item{display:flex;align-items:center;gap:12px;padding:10px;cursor:pointer}
+.item img{width:26px;height:26px}
+.item:hover{background:#2a2a2a}
+
+.popupWrap{position:fixed;inset:0;display:none;backdrop-filter:blur(10px);align-items:center;justify-content:center}
+.popup{background:#1e1e1e;border-radius:10px;padding:20px;width:500px;max-width:95%;display:flex;flex-direction:column;gap:16px}
+.popHead{display:flex;justify-content:space-between;align-items:center}
+.popHead b{font-size:18px}
+.popHead img{width:20px;height:20px;cursor:pointer}
+.popBody{display:flex;gap:20px}
+.preview{border:1px solid #333;border-radius:10px;width:160px;height:160px;display:flex;align-items:center;justify-content:center}
+.preview canvas{width:96px;height:96px}
+.opts{display:flex;flex-direction:column;gap:10px;width:100%}
+button{background:#1e1e1e;border:none;color:#fff;border-radius:10px;padding:10px;cursor:pointer}
+button:hover{background:#2a2a2a}
+
+.drop{position:relative}
+.menu{position:absolute;top:110%;left:0;background:#1e1e1e;border:1px solid #333;border-radius:10px;display:none;flex-direction:column;width:100%}
+.menu div{padding:8px;cursor:pointer}
+.menu div:hover{background:#2a2a2a}
+
+.picker{position:fixed;inset:0;background:#00000080;display:none;align-items:center;justify-content:center}
+.box{background:#1e1e1e;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;align-items:center}
+input[type=color]{appearance:none;border:none;width:220px;height:120px;border-radius:14px;background:none;cursor:pointer}
+</style>
+</head>
+<body>
+
+<nav>
+<img src="https://devnbi.github.io/NexusByte-Icons/assets/media/icons/home.png" onclick="location.href='https://devnbi.github.io/NexusByte-Icons/main/home.html'">
+<img src="https://devnbi.github.io/NexusByte-Icons/assets/media/icons/search.png" onclick="location.href='https://devnbi.github.io/NexusByte-Icons/main/search.html'">
+<img src="https://devnbi.github.io/NexusByte-Icons/assets/media/icons/information.png" onclick="location.href='https://devnbi.github.io/NexusByte-Icons/main/information.html'">
+</nav>
+
+<div class="searchWrap">
+<div class="searchBar">
+<img src="https://devnbi.github.io/NexusByte-Icons/assets/media/icons/search.png">
+<input id="search" placeholder="Search icons...">
+</div>
+</div>
+
+<div class="results" id="results"></div>
+
+<div class="popupWrap" id="popupWrap">
+<div class="popup">
+<div class="popHead">
+<b>Customise</b>
+<img src="https://devnbi.github.io/NexusByte-Icons/assets/media/icons/circular-cross.png">
+</div>
+<div class="popBody">
+<div class="preview"><canvas id="preview"></canvas></div>
+<div class="opts">
+<button id="colBtn">Change colour</button>
+<div class="drop">
+<button id="sizeBtn">Change size</button>
+<div class="menu" id="sizeMenu">
+<div>16PX</div><div>32PX</div><div>64PX</div><div>128PX</div><div>256PX</div><div>512PX</div>
+</div>
+</div>
+<div class="drop">
+<button id="formatBtn">Change format</button>
+<div class="menu" id="formatMenu">
+<div>PNG</div><div>JPG</div><div>ICO</div>
+</div>
+</div>
+<button id="downloadBtn">Download</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="picker" id="picker">
+<div class="box">
+<input type="color" id="color" value="#ffffff">
+<button onclick="apply()">Apply</button>
+<button onclick="closePicker()">Close</button>
+</div>
+</div>
+
+<script>
+let dataList=[];
+let currentImg,currentName,currentColor='#ffffff',currentSize=512,currentFormat='png';
+
+fetch('https://devnbi.github.io/NexusByte-Icons/assets/data/indexing.json')
+.then(r=>r.json())
+.then(data=>{dataList=data});
+
+document.getElementById('search').oninput=()=>{
+  const q=document.getElementById('search').value.toLowerCase();
+  const res=document.getElementById('results');
+  res.innerHTML='';
+  dataList.forEach(url=>{
+    const name=url.split('/icons/')[1].replace('.png','');
+    if(name.toLowerCase().includes(q)){
+      const d=document.createElement('div');
+      d.className='item';
+      d.innerHTML=`<img src="${url}"><div>${name}</div>`;
+      res.appendChild(d);
+      d.onclick=()=>{
+        const img=new Image();
+        img.crossOrigin='anonymous';
+        img.onload=()=>openPopup(img,name);
+        img.src=url;
+      };
+    }
+  });
+};
+
+function drawIcon(canvas,img,color){
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const s=Math.min(canvas.width/img.width,canvas.height/img.height);
+  const w=img.width*s,h=img.height*s;
+  const x=(canvas.width-w)/2,y=(canvas.height-h)/2;
+  ctx.drawImage(img,x,y,w,h);
+  ctx.globalCompositeOperation='source-atop';
+  ctx.fillStyle=color;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.globalCompositeOperation='source-over';
+}
+
+function openPopup(img,name){
+  currentImg=img;
+  currentName=name;
+  currentColor='#ffffff';
+  document.getElementById('popupWrap').style.display='flex';
+  const canvas=document.getElementById('preview');
+  canvas.width=96;canvas.height=96;
+  drawIcon(canvas,img,currentColor);
+}
+
+document.querySelector('.popHead img').onclick=()=>document.getElementById('popupWrap').style.display='none';
+
+document.getElementById('colBtn').onclick=()=>{
+  document.getElementById('picker').style.display='flex';
+  document.getElementById('color').oninput=()=>{
+    currentColor=document.getElementById('color').value;
+    drawIcon(document.getElementById('preview'),currentImg,currentColor);
+  };
+};
+
+function closePicker(){document.getElementById('picker').style.display='none';}
+function apply(){closePicker();}
+
+function toggle(id){
+  const m=document.getElementById(id);
+  m.style.display=m.style.display==='flex'?'none':'flex';
+}
+
+document.getElementById('sizeBtn').onclick=()=>toggle('sizeMenu');
+document.getElementById('formatBtn').onclick=()=>toggle('formatMenu');
+
+document.querySelectorAll('#sizeMenu div').forEach(d=>{
+  d.onclick=()=>{currentSize=parseInt(d.textContent);document.getElementById('sizeMenu').style.display='none';};
+});
+
+document.querySelectorAll('#formatMenu div').forEach(d=>{
+  d.onclick=()=>{currentFormat=d.textContent.toLowerCase();document.getElementById('formatMenu').style.display='none';};
+});
+
+document.getElementById('downloadBtn').onclick=()=>{
+  const canvas=document.createElement('canvas');
+  canvas.width=currentSize;canvas.height=currentSize;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(currentImg,0,0,currentSize,currentSize);
+  ctx.globalCompositeOperation='source-atop';
+  ctx.fillStyle=currentColor;
+  ctx.fillRect(0,0,currentSize,currentSize);
+  ctx.globalCompositeOperation='source-over';
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/'+currentFormat);
+  a.download=currentName+'.'+currentFormat;
+  a.click();
+};
+</script>
+</body>
+</html>
