@@ -1,9 +1,0 @@
-• Background Colour: #141414
-• Navigation Colour: #393646
-• Body Colour: #4F4557
-• Tile Colour: #4F4557
-• Input Bar Colour: #4F4557
-• Menu Colour: #4F4557
-• Button Colour: #2E2E2E
-• Border Colour: #6D5D6E
-• Highlight Colour: #6D5D6E
